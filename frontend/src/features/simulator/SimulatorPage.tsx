@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Lightbulb, TreeDeciduous, Calculator, RefreshCw, Info, Car, Zap, UtensilsCrossed } from "lucide-react";
 import { footprintApi } from "@/api";
@@ -80,14 +80,27 @@ function runLocalCalculation(input: FootprintInput): number {
 export function SimulatorPage() {
   const { data: latest, loading, error } = useAsync(() => footprintApi.getLatest(), []);
   const [simInput, setSimInput] = useState<FootprintInput | null>(null);
-  const [projectedTotal, setProjectedTotal] = useState<number>(0);
 
   useEffect(() => {
     if (latest) {
       setSimInput({ ...latest.input });
-      setProjectedTotal(Math.round(latest.totalMonthlyKg));
     }
   }, [latest]);
+
+  const handleSliderChange = useCallback((key: keyof FootprintInput, val: any) => {
+    setSimInput((prev) => prev ? { ...prev, [key]: val } : null);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    if (latest) {
+      setSimInput({ ...latest.input });
+    }
+  }, [latest]);
+
+  const projectedTotal = useMemo(() => {
+    if (!simInput) return 0;
+    return runLocalCalculation(simInput);
+  }, [simInput]);
 
   if (loading) return <Spinner label="Loading Simulator Sandbox" />;
 
@@ -109,20 +122,6 @@ export function SimulatorPage() {
   }
 
   if (!simInput) return null;
-
-  function handleSliderChange<K extends keyof FootprintInput>(key: K, val: FootprintInput[K]) {
-    if (!simInput) return;
-    const updated = { ...simInput, [key]: val };
-    setSimInput(updated);
-    setProjectedTotal(runLocalCalculation(updated));
-  }
-
-  function handleReset() {
-    if (latest) {
-      setSimInput({ ...latest.input });
-      setProjectedTotal(Math.round(latest.totalMonthlyKg));
-    }
-  }
 
   const currentTotal = Math.round(latest.totalMonthlyKg);
   const carbonSaved = Math.max(0, currentTotal - projectedTotal);

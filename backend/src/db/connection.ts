@@ -1,24 +1,13 @@
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, StatementSync } from "node:sqlite";
 import fs from "fs";
 import path from "path";
 import { env } from "@/config/env";
 
 let instance: DatabaseSync | null = null;
+const statementCache = new Map<string, StatementSync>();
 
 /**
  * Returns a singleton SQLite connection.
- *
- * This uses Node.js's built-in `node:sqlite` module (stable since Node 22.5)
- * instead of a third-party native binding such as better-sqlite3. That
- * removes an entire class of native-compilation dependencies (node-gyp,
- * Python, a C++ toolchain) from the project, which makes installs faster
- * and more portable across CI runners, containers, and contributors'
- * machines — a meaningful win for maintainability with no runtime
- * downside, since the API surface used here (prepare/run/get/all/exec) is
- * effectively identical to better-sqlite3's.
- *
- * Using ":memory:" (set via DATABASE_PATH) gives each test run a clean,
- * isolated database with zero setup/teardown cost.
  */
 export function getDb(): DatabaseSync {
   if (instance) return instance;
@@ -42,9 +31,23 @@ export function getDb(): DatabaseSync {
   return instance;
 }
 
+/**
+ * Prepares and caches a SQL statement to avoid recompilation on every execution.
+ */
+export function getPreparedStatement(sql: string): StatementSync {
+  let stmt = statementCache.get(sql);
+  if (!stmt) {
+    const db = getDb();
+    stmt = db.prepare(sql);
+    statementCache.set(sql, stmt);
+  }
+  return stmt;
+}
+
 /** Test/teardown helper - closes and clears the singleton connection. */
 export function closeDb(): void {
   if (instance) {
+    statementCache.clear();
     instance.close();
     instance = null;
   }

@@ -3,7 +3,7 @@ import { asyncHandler } from "@/middleware/asyncHandler";
 import { requireAuth } from "@/middleware/auth";
 import { validate } from "@/middleware/validate";
 import { NotFoundError, ForbiddenError } from "@/middleware/errors";
-import { getDb } from "@/db/connection";
+import { getPreparedStatement } from "@/db/connection";
 import { gamificationService } from "@/modules/gamification/gamification.service";
 import { CreateGoalInput, UpdateGoalProgressInput, createGoalSchema, updateGoalProgressSchema } from "./goals.validation";
 
@@ -28,9 +28,7 @@ interface GoalRecord {
 
 const goalsRepo = {
   create(userId: number, input: CreateGoalInput): GoalRecord {
-    const db = getDb();
-    const result = db
-      .prepare(`INSERT INTO goals (user_id, title, category, goal_type, target_value, baseline_value, current_value, unit, target_date)
+    const result = getPreparedStatement(`INSERT INTO goals (user_id, title, category, goal_type, target_value, baseline_value, current_value, unit, target_date)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(
         userId,
@@ -43,32 +41,29 @@ const goalsRepo = {
         input.unit,
         input.targetDate ?? null
       );
-    return db.prepare("SELECT * FROM goals WHERE id = ?").get(result.lastInsertRowid) as unknown as GoalRecord;
+    return getPreparedStatement("SELECT * FROM goals WHERE id = ?").get(result.lastInsertRowid) as unknown as GoalRecord;
   },
 
   findById(id: number): GoalRecord | undefined {
-    return getDb().prepare("SELECT * FROM goals WHERE id = ?").get(id) as unknown as GoalRecord | undefined;
+    return getPreparedStatement("SELECT * FROM goals WHERE id = ?").get(id) as unknown as GoalRecord | undefined;
   },
 
   findByUser(userId: number, status?: string): GoalRecord[] {
     if (status) {
-      return getDb()
-        .prepare("SELECT * FROM goals WHERE user_id = ? AND status = ? ORDER BY created_at DESC")
+      return getPreparedStatement("SELECT * FROM goals WHERE user_id = ? AND status = ? ORDER BY created_at DESC")
         .all(userId, status) as unknown as GoalRecord[];
     }
-    return getDb()
-      .prepare("SELECT * FROM goals WHERE user_id = ? ORDER BY created_at DESC")
+    return getPreparedStatement("SELECT * FROM goals WHERE user_id = ? ORDER BY created_at DESC")
       .all(userId) as unknown as GoalRecord[];
   },
 
   updateProgress(id: number, currentValue: number, status: string): void {
-    getDb()
-      .prepare("UPDATE goals SET current_value = ?, status = ?, updated_at = datetime('now') WHERE id = ?")
+    getPreparedStatement("UPDATE goals SET current_value = ?, status = ?, updated_at = datetime('now') WHERE id = ?")
       .run(currentValue, status, id);
   },
 
   delete(id: number): void {
-    getDb().prepare("DELETE FROM goals WHERE id = ?").run(id);
+    getPreparedStatement("DELETE FROM goals WHERE id = ?").run(id);
   }
 };
 

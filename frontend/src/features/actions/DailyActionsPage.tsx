@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   CalendarCheck,
   CheckCircle2,
@@ -38,7 +38,7 @@ export function DailyActionsPage() {
   const [completingKey, setCompletingKey] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  async function handleComplete(key: string) {
+  const handleComplete = useCallback(async (key: string) => {
     setCompletingKey(key);
     try {
       await actionsApi.complete(key);
@@ -49,7 +49,7 @@ export function DailyActionsPage() {
     } finally {
       setCompletingKey(null);
     }
-  }
+  }, [refetch]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -60,11 +60,22 @@ export function DailyActionsPage() {
   if (error) return <ErrorAlert message={error} />;
   if (!data) return null;
 
-  const totalActions = data.actions.length;
-  const pendingActions = data.actions.filter((a) => !a.completed);
-  const completedActions = data.actions.filter((a) => a.completed);
-  const completedCount = completedActions.length;
-  const percent = totalActions > 0 ? (completedCount / totalActions) * 100 : 0;
+  const stats = useMemo(() => {
+    const total = data.actions.length;
+    const pending = data.actions.filter((a) => !a.completed);
+    const completed = data.actions.filter((a) => a.completed);
+    const completedCountVal = completed.length;
+    const percentVal = total > 0 ? (completedCountVal / total) * 100 : 0;
+    return {
+      totalActions: total,
+      pendingActions: pending,
+      completedActions: completed,
+      completedCount: completedCountVal,
+      percent: percentVal,
+    };
+  }, [data]);
+
+  const { totalActions, pendingActions, completedActions, completedCount, percent } = stats;
 
   return (
     <div className="space-y-6">

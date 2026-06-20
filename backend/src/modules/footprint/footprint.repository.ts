@@ -1,4 +1,4 @@
-import { getDb } from "@/db/connection";
+import { getPreparedStatement } from "@/db/connection";
 import { FootprintInput, FootprintResult } from "./footprint.types";
 
 export interface FootprintEntryRecord {
@@ -24,7 +24,7 @@ export interface FootprintEntryRecord {
 
 export const footprintRepository = {
   insert(userId: number, input: FootprintInput, result: FootprintResult): FootprintEntryRecord {
-    const stmt = getDb().prepare(`
+    const stmt = getPreparedStatement(`
       INSERT INTO footprint_entries (
         user_id, car_km_per_week, public_km_per_week, short_flights_year, long_flights_year,
         electricity_kwh_mo, renewable_share_pct, water_liters_day, diet_type, food_waste_pct,
@@ -52,28 +52,24 @@ export const footprintRepository = {
       result.totalYearlyKg
     );
 
-    return getDb()
-      .prepare("SELECT * FROM footprint_entries WHERE id = ?")
+    return getPreparedStatement("SELECT * FROM footprint_entries WHERE id = ?")
       .get(insertResult.lastInsertRowid) as unknown as FootprintEntryRecord;
   },
 
   findLatestByUser(userId: number): FootprintEntryRecord | undefined {
-    return getDb()
-      .prepare("SELECT * FROM footprint_entries WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+    return getPreparedStatement("SELECT * FROM footprint_entries WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
       .get(userId) as unknown as FootprintEntryRecord | undefined;
   },
 
   findHistoryByUser(userId: number, limit: number, offset: number): FootprintEntryRecord[] {
-    return getDb()
-      .prepare(
+    return getPreparedStatement(
         "SELECT * FROM footprint_entries WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
       )
       .all(userId, limit, offset) as unknown as FootprintEntryRecord[];
   },
 
   countByUser(userId: number): number {
-    const row = getDb()
-      .prepare("SELECT COUNT(*) as count FROM footprint_entries WHERE user_id = ?")
+    const row = getPreparedStatement("SELECT COUNT(*) as count FROM footprint_entries WHERE user_id = ?")
       .get(userId) as { count: number };
     return row.count;
   }

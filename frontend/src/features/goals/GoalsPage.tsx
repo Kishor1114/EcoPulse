@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { FormEvent } from "react";
 import { Plus, Target, Trash2, X, Trophy, CheckCircle2, Calendar, Award } from "lucide-react";
 import { goalsApi, extractError } from "@/api";
@@ -158,7 +158,7 @@ export function GoalsPage() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [celebratedGoalTitle, setCelebratedGoalTitle] = useState<string | null>(null);
 
-  async function handleProgressUpdate(goal: any, value: number) {
+  const handleProgressUpdate = useCallback(async (goal: any, value: number) => {
     setUpdatingId(goal.id);
     try {
       await goalsApi.updateProgress(goal.id, value);
@@ -174,17 +174,17 @@ export function GoalsPage() {
     } finally {
       setUpdatingId(null);
     }
-  }
+  }, [refetch]);
 
-  async function handleDelete(id: number) {
+  const handleDelete = useCallback(async (id: number) => {
     if (confirm("Are you sure you want to delete this goal?")) {
       await goalsApi.delete(id);
       await refetch();
     }
-  }
+  }, [refetch]);
 
-  const completedGoals = goals.filter((g) => g.status === "completed");
-  const completedCount = completedGoals.length;
+  const completedGoals = useMemo(() => goals.filter((g) => g.status === "completed"), [goals]);
+  const completedCount = useMemo(() => completedGoals.length, [completedGoals]);
 
   // Milestone mapping
   const milestones = [

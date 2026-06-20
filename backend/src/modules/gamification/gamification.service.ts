@@ -1,4 +1,4 @@
-import { getDb } from "@/db/connection";
+import { getPreparedStatement } from "@/db/connection";
 import { gamificationRepository } from "./gamification.repository";
 import { BADGE_CATALOG, GamificationSignals, POINTS } from "./gamification.types";
 
@@ -20,27 +20,23 @@ function computeNewStreak(lastActiveDate: string | null, currentStreak: number):
 }
 
 function getSignals(userId: number): GamificationSignals {
-  const db = getDb();
-
   const entryCount = (
-    db.prepare("SELECT COUNT(*) as c FROM footprint_entries WHERE user_id = ?").get(userId) as { c: number }
+    getPreparedStatement("SELECT COUNT(*) as c FROM footprint_entries WHERE user_id = ?").get(userId) as { c: number }
   ).c;
 
-  const latestEntry = db
-    .prepare("SELECT total_monthly_kg FROM footprint_entries WHERE user_id = ? ORDER BY created_at DESC LIMIT 1")
+  const latestEntry = getPreparedStatement("SELECT total_monthly_kg FROM footprint_entries WHERE user_id = ? ORDER BY created_at DESC LIMIT 1")
     .get(userId) as { total_monthly_kg: number } | undefined;
 
   const state = gamificationRepository.findOrCreate(userId);
 
   const completedGoals = (
-    db.prepare("SELECT COUNT(*) as c FROM goals WHERE user_id = ? AND status = 'completed'").get(userId) as {
+    getPreparedStatement("SELECT COUNT(*) as c FROM goals WHERE user_id = ? AND status = 'completed'").get(userId) as {
       c: number;
     }
   ).c;
 
   const completedActions = (
-    db
-      .prepare("SELECT COUNT(*) as c FROM daily_action_log WHERE user_id = ? AND completed = 1")
+    getPreparedStatement("SELECT COUNT(*) as c FROM daily_action_log WHERE user_id = ? AND completed = 1")
       .get(userId) as { c: number }
   ).c;
 

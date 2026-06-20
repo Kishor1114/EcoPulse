@@ -3,7 +3,7 @@ import { z } from "zod";
 import { asyncHandler } from "@/middleware/asyncHandler";
 import { requireAuth } from "@/middleware/auth";
 import { validate } from "@/middleware/validate";
-import { getDb } from "@/db/connection";
+import { getPreparedStatement } from "@/db/connection";
 import { gamificationService } from "@/modules/gamification/gamification.service";
 
 // ─── Action catalog ───────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ interface ActionLogRecord {
 
 const actionLogRepo = {
   upsertDailyActions(userId: number, actions: ActionTemplate[], dateStr: string): void {
-    const stmt = getDb().prepare(`
+    const stmt = getPreparedStatement(`
       INSERT OR IGNORE INTO daily_action_log (user_id, action_key, title, category, action_date)
       VALUES (?, ?, ?, ?, ?)
     `);
@@ -72,14 +72,12 @@ const actionLogRepo = {
   },
 
   findByUserAndDate(userId: number, dateStr: string): ActionLogRecord[] {
-    return getDb()
-      .prepare("SELECT * FROM daily_action_log WHERE user_id = ? AND action_date = ?")
+    return getPreparedStatement("SELECT * FROM daily_action_log WHERE user_id = ? AND action_date = ?")
       .all(userId, dateStr) as unknown as ActionLogRecord[];
   },
 
   markComplete(userId: number, actionKey: string, dateStr: string): boolean {
-    const result = getDb()
-      .prepare(
+    const result = getPreparedStatement(
         "UPDATE daily_action_log SET completed = 1, completed_at = datetime('now') WHERE user_id = ? AND action_key = ? AND action_date = ? AND completed = 0"
       )
       .run(userId, actionKey, dateStr);
@@ -87,8 +85,7 @@ const actionLogRepo = {
   },
 
   getTotalCompleted(userId: number): number {
-    const row = getDb()
-      .prepare("SELECT COUNT(*) as c FROM daily_action_log WHERE user_id = ? AND completed = 1")
+    const row = getPreparedStatement("SELECT COUNT(*) as c FROM daily_action_log WHERE user_id = ? AND completed = 1")
       .get(userId) as { c: number };
     return row.c;
   }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Flame,
@@ -103,7 +103,7 @@ export function DashboardPage() {
     return { ...dash, recommendations };
   }, []);
 
-  async function handleActionComplete(key: string) {
+  const handleActionComplete = useCallback(async (key: string) => {
     setActionLoadingKey(key);
     try {
       await actionsApi.complete(key);
@@ -114,9 +114,9 @@ export function DashboardPage() {
     } finally {
       setActionLoadingKey(null);
     }
-  }
+  }, [refetch]);
 
-  async function handleConvertRecommendationToGoal(rec: any) {
+  const handleConvertRecommendationToGoal = useCallback(async (rec: any) => {
     setGoalLoadingKey(rec.id);
     try {
       await goalsApi.create({
@@ -133,7 +133,7 @@ export function DashboardPage() {
     } finally {
       setGoalLoadingKey(null);
     }
-  }
+  }, [refetch]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -147,27 +147,40 @@ export function DashboardPage() {
   const { footprint, trend, goals, todayActions, gamification, recommendations = [] } = data;
 
   // Compute stats details
-  const score = footprint ? calculateCarbonScore(footprint.totalMonthlyKg) : 0;
-  const tier = getScoreTier(score);
-  const levelInfo = getSustainabilityLevel(gamification.points);
+  const stats = useMemo(() => {
+    const scoreVal = footprint ? calculateCarbonScore(footprint.totalMonthlyKg) : 0;
+    const tierVal = getScoreTier(scoreVal);
+    const levelInfoVal = getSustainabilityLevel(gamification.points);
 
-  let improvementPercent = 0;
-  let improvementLabel = "vs. Global Average";
-  let isPositive = false;
+    let improvementPercentVal = 0;
+    let improvementLabelVal = "vs. Global Average";
+    let isPositiveVal = false;
 
-  if (trend && trend.length >= 2) {
-    const prev = trend[trend.length - 2].monthlyKg;
-    const current = trend[trend.length - 1].monthlyKg;
-    if (prev > 0) {
-      improvementPercent = Math.round(((prev - current) / prev) * 100);
-      improvementLabel = "vs. Last Month";
-      isPositive = improvementPercent >= 0;
+    if (trend && trend.length >= 2) {
+      const prev = trend[trend.length - 2].monthlyKg;
+      const current = trend[trend.length - 1].monthlyKg;
+      if (prev > 0) {
+        improvementPercentVal = Math.round(((prev - current) / prev) * 100);
+        improvementLabelVal = "vs. Last Month";
+        isPositiveVal = improvementPercentVal >= 0;
+      }
+    } else if (footprint) {
+      improvementPercentVal = Math.round(footprint.vsGlobalAverageMonthlyPercent);
+      improvementLabelVal = "vs. Global Benchmark";
+      isPositiveVal = improvementPercentVal <= 0; // negative vs global average is good
     }
-  } else if (footprint) {
-    improvementPercent = Math.round(footprint.vsGlobalAverageMonthlyPercent);
-    improvementLabel = "vs. Global Benchmark";
-    isPositive = improvementPercent <= 0; // negative vs global average is good
-  }
+
+    return {
+      score: scoreVal,
+      tier: tierVal,
+      levelInfo: levelInfoVal,
+      improvementPercent: improvementPercentVal,
+      improvementLabel: improvementLabelVal,
+      isPositive: isPositiveVal,
+    };
+  }, [footprint, trend, gamification.points]);
+
+  const { score, tier, levelInfo, improvementPercent, improvementLabel, isPositive } = stats;
 
   return (
     <div className="space-y-6">

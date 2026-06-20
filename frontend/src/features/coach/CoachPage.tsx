@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, CheckCircle2, Calculator, Target, Info } from "lucide-react";
 import { coachApi, goalsApi } from "@/api";
@@ -37,7 +37,7 @@ export function CoachPage() {
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  async function handleAddGoal(rec: any) {
+  const handleAddGoal = useCallback(async (rec: any) => {
     setSubmittingId(rec.id);
     try {
       await goalsApi.create({
@@ -53,7 +53,7 @@ export function CoachPage() {
     } finally {
       setSubmittingId(null);
     }
-  }
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);

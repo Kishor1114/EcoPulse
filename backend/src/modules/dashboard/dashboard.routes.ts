@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { asyncHandler } from "@/middleware/asyncHandler";
 import { requireAuth } from "@/middleware/auth";
-import { getDb } from "@/db/connection";
+import { getPreparedStatement } from "@/db/connection";
 import { gamificationService } from "@/modules/gamification/gamification.service";
 import { BENCHMARK_MONTHLY_KG_CO2E } from "@/modules/footprint/emissionFactors";
 import { CategoryResult } from "@/modules/footprint/footprint.types";
@@ -14,11 +14,9 @@ dashboardRouter.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.id;
-    const db = getDb();
 
     // Latest footprint entry
-    const latest = db
-      .prepare("SELECT * FROM footprint_entries WHERE user_id = ? ORDER BY created_at DESC LIMIT 1")
+    const latest = getPreparedStatement("SELECT * FROM footprint_entries WHERE user_id = ? ORDER BY created_at DESC LIMIT 1")
       .get(userId) as
       | {
           id: number;
@@ -30,8 +28,7 @@ dashboardRouter.get(
       | undefined;
 
     // Trend: last 6 entries for chart
-    const trendRaw = db
-      .prepare(
+    const trendRaw = getPreparedStatement(
         "SELECT total_monthly_kg, created_at FROM footprint_entries WHERE user_id = ? ORDER BY created_at DESC LIMIT 6"
       )
       .all(userId) as Array<{ total_monthly_kg: number; created_at: string }>;
@@ -43,22 +40,19 @@ dashboardRouter.get(
 
     // Goals summary
     const activeGoals = (
-      db
-        .prepare("SELECT COUNT(*) as c FROM goals WHERE user_id = ? AND status = 'active'")
+      getPreparedStatement("SELECT COUNT(*) as c FROM goals WHERE user_id = ? AND status = 'active'")
         .get(userId) as { c: number }
     ).c;
 
     const completedGoals = (
-      db
-        .prepare("SELECT COUNT(*) as c FROM goals WHERE user_id = ? AND status = 'completed'")
+      getPreparedStatement("SELECT COUNT(*) as c FROM goals WHERE user_id = ? AND status = 'completed'")
         .get(userId) as { c: number }
     ).c;
 
     // Today's action completion
     const today = new Date().toISOString().slice(0, 10);
     const completedToday = (
-      db
-        .prepare(
+      getPreparedStatement(
           "SELECT COUNT(*) as c FROM daily_action_log WHERE user_id = ? AND action_date = ? AND completed = 1"
         )
         .get(userId, today) as { c: number }

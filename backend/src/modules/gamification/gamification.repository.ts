@@ -1,4 +1,4 @@
-import { getDb } from "@/db/connection";
+import { getPreparedStatement } from "@/db/connection";
 
 export interface GamificationRecord {
   user_id: number;
@@ -11,38 +11,32 @@ export interface GamificationRecord {
 
 export const gamificationRepository = {
   findOrCreate(userId: number): GamificationRecord {
-    const existing = getDb()
-      .prepare("SELECT * FROM gamification_state WHERE user_id = ?")
+    const existing = getPreparedStatement("SELECT * FROM gamification_state WHERE user_id = ?")
       .get(userId) as unknown as GamificationRecord | undefined;
 
     if (existing) return existing;
 
-    getDb()
-      .prepare("INSERT OR IGNORE INTO gamification_state (user_id) VALUES (?)")
+    getPreparedStatement("INSERT OR IGNORE INTO gamification_state (user_id) VALUES (?)")
       .run(userId);
 
-    return getDb()
-      .prepare("SELECT * FROM gamification_state WHERE user_id = ?")
+    return getPreparedStatement("SELECT * FROM gamification_state WHERE user_id = ?")
       .get(userId) as unknown as GamificationRecord;
   },
 
   addPoints(userId: number, points: number): void {
-    getDb()
-      .prepare("UPDATE gamification_state SET points = points + ?, updated_at = datetime('now') WHERE user_id = ?")
+    getPreparedStatement("UPDATE gamification_state SET points = points + ?, updated_at = datetime('now') WHERE user_id = ?")
       .run(points, userId);
   },
 
   updateStreak(userId: number, streakCount: number, lastActiveDate: string): void {
-    getDb()
-      .prepare(
+    getPreparedStatement(
         "UPDATE gamification_state SET streak_count = ?, last_active_date = ?, updated_at = datetime('now') WHERE user_id = ?"
       )
       .run(streakCount, lastActiveDate, userId);
   },
 
   updateBadges(userId: number, badgesJson: string): void {
-    getDb()
-      .prepare("UPDATE gamification_state SET badges_json = ?, updated_at = datetime('now') WHERE user_id = ?")
+    getPreparedStatement("UPDATE gamification_state SET badges_json = ?, updated_at = datetime('now') WHERE user_id = ?")
       .run(badgesJson, userId);
   }
 };
